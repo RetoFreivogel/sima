@@ -1,0 +1,86 @@
+use source_ast::*;
+
+grammar;
+
+match{
+    r"[fiu][1-9][0-9]*" => SIMPLETYPE,
+}else{
+    "module",
+    "opaque",
+    "dup",
+    "drop",
+    "swap",
+    "id",
+    "::",
+    "->",
+    "=",
+    ",",
+    "*",
+    ";",
+    "(",
+    ")",
+    "[",
+    "]",
+    r#""[^"]*""#            => STRINGLITERAL,
+    r"[a-zA-Z][0-9a-zA-Z]*" => IDENTIFIER,
+    r"-?[0-9][0-9]*"        => NUMBER,
+    r"\\\\.*\n"             => COMMENT,
+}
+
+
+
+pub Module: Module = {
+    <m:Module> <d:Definition>    => {let mut m = m; m.definitions.push(d); m},
+    <m:Module> <d:Declaration>   => {let mut m = m; m.declarations.push(d); m},
+    "module" <id:IDENTIFIER> ";" => Module::new(id),
+};
+
+Definition: Definition = {
+    <id: IDENTIFIER> "=" <expr: Concat> ";" => Definition{id: id.to_string(), expr},
+};
+
+Declaration: Declaration = {
+    <id: IDENTIFIER> "::" <sima_type: FunctionType> ";" => Declaration{id: id.to_string(), sima_type},
+};
+
+FunctionType: SimaType = {
+    <args: PointerType*> "->" <ret: PointerType*> => SimaType::Function{args, ret},
+    PointerType,
+};
+
+PointerType: SimaType = {
+    <target: BasicType> "*" => SimaType::Pointer{target: Box::new(target)},
+    BasicType,
+};
+
+BasicType: SimaType = {
+    <id: SIMPLETYPE> => SimaType::Basic{id: id.to_string()},
+    "opaque"         => SimaType::Opaque,
+};
+
+Concat : Expression = {
+    <left:Concat> <right:Sidecat> => 
+        Expression::Concat{left: Box::new(left), right: Box::new(right)},
+    Sidecat,
+};
+
+Sidecat : Expression = {
+    <left:Sidecat> "," <right:Symbol> => 
+        Expression::Sidecat{left: Box::new(left), right: Box::new(right)},
+    Symbol,
+};
+
+Symbol : Expression = {
+    "(" <Concat> ")",
+    "[" <inner: Concat> "]" => Expression::Block{inner: Box::new(inner)},
+
+    "dup"  => Expression::Duplicate,
+    "drop" => Expression::Discard,
+    "swap" => Expression::Exchange,
+    "id"   => Expression::Keep,
+
+    STRINGLITERAL => Expression::StringLiteral(<>.to_string()),
+    NUMBER        => Expression::Number(<>.to_string()),
+    IDENTIFIER    => Expression::Identifier(<>.to_string()),
+};
+

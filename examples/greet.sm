@@ -1,0 +1,19 @@
+module greet;
+fdopen :: i32 i8* -- opaque*;
+fputs :: i8* opaque* -- i32;
+fgets :: i8* i32 opaque* -- i8*;
+malloc :: i32 -- i8*;
+
+stdout :: -- opaque*;
+stdout = [1 "w" fdopen];
+stdin :: -- opaque*;
+stdin = [0 "r" fdopen];
+
+read :: -- i8*;
+read = [200 dup malloc swap stdin fgets];
+
+write :: i8* opaque* --;
+write = [fputs drop];
+
+main :: -- i32;
+main = [stdout dup dup "what is your name?\n" swap write read swap "Hello " swap write swap write 0];
