@@ -37,8 +37,10 @@ impl CodegenUnit {
     }
 }
 
+
 impl CodegenUnit {
-    fn build_module(&mut self, ast: ast::Module) -> () {
+    fn build_module(&mut self, ast: ast::Module){
+    	/*
         for dec in ast.declarations {
             let function_type = self.build_function_type(&dec.sima_type);
             self.module.add_function(&dec.id, &function_type, None);
@@ -47,9 +49,10 @@ impl CodegenUnit {
             //TODO infer function definition type
             self.build_function(def);
         }
+        */
     }
 
-    fn build_function(&mut self, def: ast::Definition) {
+    fn build_function(&mut self, def: ast::Function){
         use inkwell::values::BasicValue;
         let function = self.module
             .get_function(&def.id)

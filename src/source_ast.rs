@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::collections::HashMap;
 use std::path::Path;
 
 pub fn parse_file(filename: &Path) -> Result<Module, Box<Error>> {
@@ -14,27 +15,36 @@ pub fn parse_file(filename: &Path) -> Result<Module, Box<Error>> {
 
 pub struct Module{
     pub id: String,
-    pub declarations: Vec<Declaration>,
-    pub definitions: Vec<Definition>,
+    pub functions: HashMap<String, Function>,
 }
 impl Module{
     pub fn new(id: &str) -> Module{
         Module{
             id: id.to_string(),
-            declarations: Vec::new(),
-            definitions: Vec::new(),
+            functions: HashMap::new(),
         }
+    }
+    pub fn add_definition(&mut self, id: &str, expr: Expression){
+        let f = self.functions.get_mut(id);
+        assert!(f.is_some(), "Function '{}' must be declared before it gets defined", id);
+        let f = f.unwrap();
+        assert!(f.expr.is_some(), "Function '{}' has multiple definitions", id);
+        f.expr = Some(expr);
+    }
+    pub fn add_declaration(&mut self, id: &str, typ: SimaType){
+        assert!(self.functions.get(id).is_none(), "Function '{}' has multiple declarations", id);
+        self.functions.insert(id.to_string(), Function{
+            id: id.to_string(),
+            typ,
+            expr: None,
+        });
     }
 }
 
-pub struct Definition{
+pub struct Function{
     pub id: String,
-    pub expr: Expression,
-}
-
-pub struct Declaration{
-    pub id: String,
-    pub sima_type: SimaType,
+    pub typ: SimaType,
+    pub expr: Option<Expression>,
 }
 
 pub enum SimaType{
@@ -96,21 +106,5 @@ impl Expression{
             Duplicate | Exchange => 2,
         }
     }
-    pub fn iter_identifers<'a>(&'a mut self) -> Box<'a + Iterator<Item= &'a mut Expression>>{
-        use self::Expression::*;
-        use std::iter;
-        match *self{
-            Concat{ref mut left, ref mut right} | Sidecat{ref mut left, ref mut right} => {
-                Box::new(left.iter_identifers().chain(right.iter_identifers()))
-            },
-            Block{ref mut inner} => {
-                Box::new(inner.iter_identifers())
-            },
-            Identifier{id:_, in_ariety:_, out_ariety:_} => {
-                Box::new(iter::once(self))
-            },
-            _ => Box::new(iter::empty())
-        }
-
-    }
 }
+

@@ -30,17 +30,17 @@ match{
 
 
 pub Module: Module = {
-    <m:Module> <d:Definition>    => {let mut m = m; m.definitions.push(d); m},
-    <m:Module> <d:Declaration>   => {let mut m = m; m.declarations.push(d); m},
+    <m:Module> <id: IDENTIFIER> "=" <expr: Concat> ";" => {
+        let mut m = m;
+        m.add_definition(id, expr);
+        m
+    },
+    <m:Module> <id: IDENTIFIER> "::" <sima_type: FunctionType> ";" => {
+        let mut m = m; 
+        m.add_declaration(id, sima_type);
+        m
+    },
     "module" <id:IDENTIFIER> ";" => Module::new(id),
-};
-
-Definition: Definition = {
-    <id: IDENTIFIER> "=" <expr: Concat> ";" => Definition{id: id.to_string(), expr},
-};
-
-Declaration: Declaration = {
-    <id: IDENTIFIER> "::" <sima_type: FunctionType> ";" => Declaration{id: id.to_string(), sima_type},
 };
 
 FunctionType: SimaType = {
