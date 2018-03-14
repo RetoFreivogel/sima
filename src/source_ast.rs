@@ -53,6 +53,20 @@ pub enum SimaType{
     Basic{id: String},
     Opaque,
 }
+impl SimaType{
+    pub fn in_ariety(&self) -> usize{
+        match self{
+            &SimaType::Function{ref args, ret: _} => args.len(),
+            _ => 1,
+        }
+    }
+    pub fn out_ariety(&self) -> usize{
+        match self{
+            &SimaType::Function{args: _, ref ret} => ret.len(),
+            _ => 1,
+        }
+    }
+}
 
 pub enum Expression{
     Concat{left: Box<Expression>, right: Box<Expression>},
@@ -60,47 +74,55 @@ pub enum Expression{
     Block{inner: Box<Expression>},
     StringLiteral(String),
     Number(String),
-    Identifier{id: String, in_ariety: usize, out_ariety: usize},
+    Identifier{id: String},
     Duplicate,
     Discard,
     Exchange,
     Keep,
 }
 
-//TODO infer Identifer ariety
-
 impl Expression{
-    pub fn in_ariety(&self) -> usize{
+    pub fn in_ariety(&self, module: &Module) -> usize{
         use self::Expression::*;
         use std::cmp::max;
         match *self{
             Concat{ref left, ref right} => {
-                let l = left.in_ariety();
-                let r = right.in_ariety();
-                l+r-max(r, left.out_ariety())
+                let l = left.in_ariety(module);
+                let r = right.in_ariety(module);
+                l+r-max(r, left.out_ariety(module))
             },
             Sidecat{ref left, ref right} => {
-                left.in_ariety() + right.in_ariety()
+                left.in_ariety(module) + right.in_ariety(module)
             },
-            Identifier{id: _, in_ariety, out_ariety: _} => in_ariety,
+            Identifier{ref id} => {
+                let f = module.functions.get(id);
+                assert!(f.is_some(), "Identifier '{}' is not in Scope of Module '{}'", id, module.id);
+                let f = f.unwrap();
+                f.typ.in_ariety()
+            },
             Block{inner: _} | StringLiteral(_) | Number(_) => 0,
             Duplicate | Discard | Keep => 1,
             Exchange => 2,
         }
     }
-    pub fn out_ariety(&self) -> usize{
+    pub fn out_ariety(&self, module: &Module) -> usize{
         use self::Expression::*;
         use std::cmp::max;
         match *self{
             Concat{ref left, ref right} => {
-                let l = left.out_ariety();
-                let r = right.out_ariety();
-                l+r-max(l, right.in_ariety())
+                let l = left.out_ariety(module);
+                let r = right.out_ariety(module);
+                l+r-max(l, right.in_ariety(module))
             },
             Sidecat{ref left, ref right} => {
-                left.out_ariety() + right.out_ariety()
+                left.out_ariety(module) + right.out_ariety(module)
             },
-            Identifier{id:_, in_ariety:_, out_ariety} => out_ariety,
+            Identifier{ref id} => {
+                let f = module.functions.get(id);
+                assert!(f.is_some(), "Identifier '{}' is not in Scope of Module '{}'", id, module.id);
+                let f = f.unwrap();
+                f.typ.out_ariety()
+            },
             Discard => 0,
             Block{inner: _} | StringLiteral(_) | Number(_) | Keep => 1,
             Duplicate | Exchange => 2,

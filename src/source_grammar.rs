@@ -1631,7 +1631,7 @@ fn __action22<
     (_, id, _): (usize, &'input str, usize),
 ) -> Expression
 {
-    Expression::Identifier{id: id.to_string(), in_ariety: 0, out_ariety: 0}
+    Expression::Identifier{id: id.to_string()}
 }
 
 #[allow(unused_variables)]
