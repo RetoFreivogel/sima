@@ -50,9 +50,67 @@ pub enum Expression{
     Block{inner: Box<Expression>},
     StringLiteral(String),
     Number(String),
-    Identifier(String),
+    Identifier{id: String, in_ariety: usize, out_ariety: usize},
     Duplicate,
     Discard,
     Exchange,
     Keep,
+}
+
+//TODO infer Identifer ariety
+
+impl Expression{
+    pub fn in_ariety(&self) -> usize{
+        use self::Expression::*;
+        use std::cmp::max;
+        match *self{
+            Concat{ref left, ref right} => {
+                let l = left.in_ariety();
+                let r = right.in_ariety();
+                l+r-max(r, left.out_ariety())
+            },
+            Sidecat{ref left, ref right} => {
+                left.in_ariety() + right.in_ariety()
+            },
+            Identifier{id: _, in_ariety, out_ariety: _} => in_ariety,
+            Block{inner: _} | StringLiteral(_) | Number(_) => 0,
+            Duplicate | Discard | Keep => 1,
+            Exchange => 2,
+        }
+    }
+    pub fn out_ariety(&self) -> usize{
+        use self::Expression::*;
+        use std::cmp::max;
+        match *self{
+            Concat{ref left, ref right} => {
+                let l = left.out_ariety();
+                let r = right.out_ariety();
+                l+r-max(l, right.in_ariety())
+            },
+            Sidecat{ref left, ref right} => {
+                left.out_ariety() + right.out_ariety()
+            },
+            Identifier{id:_, in_ariety:_, out_ariety} => out_ariety,
+            Discard => 0,
+            Block{inner: _} | StringLiteral(_) | Number(_) | Keep => 1,
+            Duplicate | Exchange => 2,
+        }
+    }
+    pub fn iter_identifers<'a>(&'a mut self) -> Box<'a + Iterator<Item= &'a mut Expression>>{
+        use self::Expression::*;
+        use std::iter;
+        match *self{
+            Concat{ref mut left, ref mut right} | Sidecat{ref mut left, ref mut right} => {
+                Box::new(left.iter_identifers().chain(right.iter_identifers()))
+            },
+            Block{ref mut inner} => {
+                Box::new(inner.iter_identifers())
+            },
+            Identifier{id:_, in_ariety:_, out_ariety:_} => {
+                Box::new(iter::once(self))
+            },
+            _ => Box::new(iter::empty())
+        }
+
+    }
 }

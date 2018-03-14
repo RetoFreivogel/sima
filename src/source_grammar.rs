@@ -1700,10 +1700,10 @@ fn __action24<
     'input,
 >(
     input: &'input str,
-    (_, __0, _): (usize, &'input str, usize),
+    (_, id, _): (usize, &'input str, usize),
 ) -> Expression
 {
-    Expression::Identifier(__0.to_string())
+    Expression::Identifier{id: id.to_string(), in_ariety: 0, out_ariety: 0}
 }
 
 #[allow(unused_variables)]
