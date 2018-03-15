@@ -4,6 +4,7 @@ use inkwell;
 use std::path::Path;
 use source_ast as ast;
 use inkwell::types::{StructType, BasicTypeEnum, FunctionType};
+use inkwell::values::{BasicValue, BasicValueEnum};
 
 pub fn print_llvm_ir(ast_module: ast::Module, dest_file: &str) {
     let mut cgu = CodegenUnit::new(&ast_module.id);
@@ -12,11 +13,12 @@ pub fn print_llvm_ir(ast_module: ast::Module, dest_file: &str) {
     cgu.module.print_to_file(Path::new(dest_file)).unwrap();
 }
 
+#[derive(Debug)]
 struct CodegenUnit {
     context: inkwell::context::Context,
     module: inkwell::module::Module,
     builder: inkwell::builder::Builder,
-    stack: Vec<inkwell::values::BasicValueEnum>,
+    stack: Vec<BasicValueEnum>,
     opaque_type: StructType,
 }
 
@@ -37,95 +39,102 @@ impl CodegenUnit {
     }
 }
 
-
 impl CodegenUnit {
-    fn build_module(&mut self, ast: ast::Module){
-    	/*
-        for dec in ast.declarations {
-            let function_type = self.build_function_type(&dec.sima_type);
-            self.module.add_function(&dec.id, &function_type, None);
+    fn build_module(&mut self, ast_module: ast::Module){
+    	ast_module.calc_arieties();
+        for (id, fun) in ast_module.functions.iter() {
+            let function_type = self.build_function_type(&fun.typ);
+            self.module.add_function(&id, &function_type, None);
         }
-        for def in ast.definitions {
-            //TODO infer function definition type
-            self.build_function(def);
+        for (id, fun) in ast_module.functions.iter(){
+            if let Some(ref expr) = fun.expr{
+            	let function_value = self.module.get_function(id).unwrap();
+		        let basic_block = self.context.append_basic_block(&function_value, "entry");
+		        self.builder.position_at_end(&basic_block);
+		        self.stack.clear();
+		        for p in function_value.params(){
+		            self.put(p, 0);
+        		}
+        		self.build_expression(&expr, 0);
+        		if self.stack.is_empty(){
+        			self.builder.build_return(None);
+        		}else{
+        			let ret = &self.stack.pop().unwrap() as &BasicValue;
+        			self.builder.build_return(Some(ret));
+        		}
+            }
         }
-        */
+
     }
 
-    fn build_function(&mut self, def: ast::Function){
-        use inkwell::values::BasicValue;
-        let function = self.module
-            .get_function(&def.id)
-            .expect("Missing Definition");
-        let basic_block = self.context.append_basic_block(&function, "entry");
-        self.builder.position_at_end(&basic_block);
-        self.stack.clear();
-        for i in 0..function.count_params() {
-            self.stack.push(function.get_nth_param(i).unwrap());
-        }
-        /*
-        for sym in def.block.symbols {
-            self.build_symbol(sym);
-        }
-        */
-        if let Some(ret) = self.stack.pop() {
-            self.builder.build_return(Some(&ret as &BasicValue));
-        } else {
-            self.builder.build_return(None);
-        }
+    fn put(&mut self, value: BasicValueEnum, depth: usize){
+    	let index = self.stack.len() - depth;
+    	self.stack.insert(index, value);
+    }
+    fn take(&mut self, depth: usize) -> BasicValueEnum{
+    	let index = self.stack.len() - depth - 1;
+    	self.stack.remove(index)
     }
 
-/*
-    fn build_symbol(&mut self, symbol: ast::Symbol) {
+    fn build_expression(&mut self, expr: &ast::Expression, depth: usize) {
         use inkwell::values::BasicValue;
-        use source_ast::Symbol::*;
+        use source_ast::Expression::*;
         use self::either::Either;
 
-        match symbol {
+        match *expr{
+        	Concat{ref left, ref right} => {
+        		self.build_expression(left, depth);
+        		self.build_expression(right, depth);
+        	}
+        	Sidecat{ref left, ref right} => {
+        		self.build_expression(left, depth + right.in_ariety());
+        		self.build_expression(right, depth);
+        	},
             Block { .. } => unimplemented!(),
-            StringLiteral { lit } => {
+            StringLiteral(ref lit) => {
                 let str_arr = self.builder
-                    .build_global_string(&lit.value, "")
+                    .build_global_string(&lit, "string")
                     .as_pointer_value();
                 let i32_0 = self.context.i32_type().const_int(0, false);
                 let str_ptr = self.builder.build_gep(&str_arr, &[&i32_0, &i32_0], "");
-                self.stack.push(str_ptr.as_basic_value_enum());
+                self.put(str_ptr.as_basic_value_enum(), depth);
             }
-            Identifier { id } => {
-                let function = self.module.get_function(&id.name).unwrap();
-                let num_args = function.count_params() as usize;
-                let stack_len = self.stack.len();
-                let args_vec = self.stack.split_off(stack_len - num_args);
-                let args = args_vec
-                    .iter()
-                    .map(|v| v as &BasicValue)
-                    .collect::<Vec<&BasicValue>>();
-
+            Identifier {ref id, ref in_ariety, ..} => {
+                let function = self.module.get_function(&id);
+                assert!(function.is_some(), "Unknown Identifier '{}'", id);
+                let function = function.unwrap();
+                let mut args : Vec<Box<BasicValue>> = Vec::new(); 
+                for _ in 0..in_ariety.get(){
+                	args.push(Box::new(self.take(depth)));
+                }
+            	let args : Vec<_> = args.iter().map(|t| t.as_ref()).collect();
                 let ret = self.builder.build_call(&function, &args, "", false);
                 if let Either::Left(val) = ret {
-                    self.stack.push(val);
+                    self.put(val, depth);
                 }
             }
-            Number { num } => {
-            	let val = self.context.i32_type().const_int(num.value, false);
-            	self.stack.push(val.as_basic_value_enum());
+            Number(ref num) => {
+            	let i : u64 = num.parse().unwrap();
+            	let val = self.context.i32_type().const_int(i, false);
+            	self.put(val.as_basic_value_enum(), depth);
             },
     		Duplicate => {
-    			let last = self.stack.last().expect("dup was used on an empty stack").clone();
-    			self.stack.push(last);
+    			let val = self.take(depth).clone();
+    			self.put(val, depth);
+       			self.put(val, depth);
     		},
     		Discard => {
-    			self.stack.pop().expect("drop was used on an emtpy stack");
+    			self.take(depth);
     		},
+    		Keep => {},
     		Exchange => {
-    			let last = self.stack.pop().expect("exchange was used on an empty stack");
-    			let second = self.stack.pop().expect("exchange was used on a stack with only one element");
-    			self.stack.push(last);
-    			self.stack.push(second);
+    			let first = self.take(depth);
+    			let second = self.take(depth);
+    			self.put(first, depth);
+    			self.put(second, depth);
     		},
         }
     }
-*/
 
     fn build_function_type(&mut self, typ: &ast::SimaType) -> FunctionType {
         use source_ast::SimaType::*;

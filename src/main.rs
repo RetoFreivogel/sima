@@ -21,5 +21,6 @@ fn main() {
     let mut outname = outname.to_str().unwrap().to_string();
     outname.shrink_to_fit();
     let module = parse_file(filename).unwrap();
+    println!("{:#?}", module);
     print_llvm_ir(module, &outname);
 }

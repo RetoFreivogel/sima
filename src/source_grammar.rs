@@ -1,5 +1,6 @@
 // auto-generated: "lalrpop 0.14.0"
 use source_ast::*;
+use std::cell::Cell;
 #[allow(unused_extern_crates)]
 extern crate lalrpop_util as __lalrpop_util;
 
@@ -7,6 +8,7 @@ mod __parse__Module {
     #![allow(non_snake_case, non_camel_case_types, unused_mut, unused_variables, unused_imports, unused_parens)]
 
     use source_ast::*;
+    use std::cell::Cell;
     #[allow(unused_extern_crates)]
     extern crate lalrpop_util as __lalrpop_util;
     use super::__intern_token::Token;
@@ -1232,6 +1234,7 @@ pub use self::__parse__Module::parse_Module;
 mod __intern_token {
     #![allow(unused_imports)]
     use source_ast::*;
+    use std::cell::Cell;
     #[allow(unused_extern_crates)]
     extern crate lalrpop_util as __lalrpop_util;
     extern crate regex as __regex;
@@ -1631,7 +1634,11 @@ fn __action22<
     (_, id, _): (usize, &'input str, usize),
 ) -> Expression
 {
-    Expression::Identifier{id: id.to_string()}
+    Expression::Identifier{
+        id: id.to_string(),
+        in_ariety: Cell::new(0),
+        out_ariety: Cell::new(0),
+    }
 }
 
 #[allow(unused_variables)]

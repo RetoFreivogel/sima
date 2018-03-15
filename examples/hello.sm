@@ -1,4 +1,4 @@
 module hello;
-puts :: i8* -- i32;
-main :: -- i32;
-main = ["hello world!" puts 0];
+puts :: i8* -> i32;
+main :: -> i32;
+main = "hello world!" puts 0;
