@@ -107,6 +107,7 @@ impl CodegenUnit {
                 for _ in 0..in_ariety.get(){
                 	args.push(Box::new(self.take(depth)));
                 }
+                args.reverse(); 
             	let args : Vec<_> = args.iter().map(|t| t.as_ref()).collect();
                 let ret = self.builder.build_call(&function, &args, "", false);
                 if let Either::Left(val) = ret {

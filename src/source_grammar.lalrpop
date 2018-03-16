@@ -78,9 +78,11 @@ Symbol : Expression = {
     "swap" => Expression::Exchange,
     "id"   => Expression::Keep,
 
-    STRINGLITERAL   => Expression::StringLiteral(<>.to_string()),
-    NUMBER          => Expression::Number(<>.to_string()),
-    <id:IDENTIFIER> => Expression::Identifier{
+    <lit: STRINGLITERAL> => {
+        Expression::StringLiteral(lit[1..lit.len()-1].to_string())
+    },
+    NUMBER               => Expression::Number(<>.to_string()),
+    <id:IDENTIFIER>      => Expression::Identifier{
         id: id.to_string(),
         in_ariety: Cell::new(0),
         out_ariety: Cell::new(0),

@@ -1609,10 +1609,12 @@ fn __action20<
     'input,
 >(
     input: &'input str,
-    (_, __0, _): (usize, &'input str, usize),
+    (_, lit, _): (usize, &'input str, usize),
 ) -> Expression
 {
-    Expression::StringLiteral(__0.to_string())
+    {
+        Expression::StringLiteral(lit[1..lit.len()-1].to_string())
+    }
 }
 
 #[allow(unused_variables)]

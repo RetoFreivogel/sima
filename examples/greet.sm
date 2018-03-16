@@ -1,19 +1,15 @@
 module greet;
-fdopen :: i32 i8* -- opaque*;
-fputs :: i8* opaque* -- i32;
-fgets :: i8* i32 opaque* -- i8*;
-malloc :: i32 -- i8*;
 
-stdout :: -- opaque*;
-stdout = [1 "w" fdopen];
-stdin :: -- opaque*;
-stdin = [0 "r" fdopen];
+puts :: i8* -> i32;
+gets :: i8* -> i8*;
+malloc :: i32 -> i8*;
 
-read :: -- i8*;
-read = [200 dup malloc swap stdin fgets];
+read :: -> i8*;
+read = 200 malloc gets;
 
-write :: i8* opaque* --;
-write = [fputs drop];
+write :: i8* ->;
+write = puts drop;
 
-main :: -- i32;
-main = [stdout dup dup "what is your name?\n" swap write read swap "Hello " swap write swap write 0];
+main :: -> i32;
+main =	"what is your name?" write
+		"Greetings " read write,write 0;
